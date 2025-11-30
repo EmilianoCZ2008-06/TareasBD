@@ -15,4 +15,12 @@ public class Tarea {
     private String titulo;
     private String descripcion;
     private boolean realizada;
+
+
+
+    public Tarea(String titulo, String descripcion, boolean realizada) {
+        this.titulo = titulo;
+        this.descripcion = descripcion;
+        this.realizada = realizada;
+    }
 }
