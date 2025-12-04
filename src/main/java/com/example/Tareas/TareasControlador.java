@@ -14,98 +14,41 @@ import net.rgielen.fxweaver.core.FxmlView;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-@Component
-@FxmlView("/TareasVista.fxml")
+@Component //indica que esta clase es administrada por Spring
+@FxmlView("/TareasVista.fxml") //conecta esta clase con el archivo FXML de la UI
 
 public class TareasControlador {
+
     @Autowired
-    TareasServicio tareasServicio;
+    TareasServicio tareasServicio; //servicio que maneja la logica y conexion con la base de datos
     @FXML
-    public ListView<Tarea> lstVwListaDeTareas;
+    public ListView<Tarea> lstVwListaDeTareas;   //lista donde se muestran todas las tareas
     @FXML
-    public TextField txtFldTitulo;
+    public TextField txtFldTitulo;               //campo para mostrar/escribir el titulo
     @FXML
-    public TextField txtArdDescripcion;
+    public TextField txtArdDescripcion;          //campo para mostrar/escribir la descripcion
     @FXML
-    public CheckBox chkBxRealizada;
+    public CheckBox chkBxRealizada;              //marca si la tarea está completada
     @FXML
-    public Button btnNuevaTarea;
+    public Button btnNuevaTarea;                 //boton para crear una nueva tarea
     @FXML
-    public Button btnModificar;
+    public Button btnModificar;                  //boton para modificar la tarea seleccionada
     @FXML
-    public Button btnEliminar;
+    public Button btnEliminar;                   //boton para borrar la tarea seleccionada
     @FXML
-    public Button btnSalir;
+    public Button btnSalir;                      //boton para salir de la aplicacion
     @FXML
-    public Button btnGuardar;
+    public Button btnGuardar;                    //boton para guardar cambios en una tarea
+    @FXML
+    public CheckBox chkFechaAuto;                //si está activo: usa fecha automatica
+    @FXML
+    public DatePicker datePickerFecha;           //selector de fecha cuando es manual
 
-    ObservableList<Tarea> observableList;
-
-    @FXML
-    public void oABtnNuevaTarea(ActionEvent actionEvent) {
-        Tarea nuevaTarea = new Tarea("Nueva tarea", "Descripcion de la tarea", false);
-        observableList.add(nuevaTarea);
-        lstVwListaDeTareas.getSelectionModel().select(nuevaTarea);
-        lstVwListaDeTareas.scrollTo(nuevaTarea);
-        txtFldTitulo.setDisable(false);
-        txtArdDescripcion.setDisable(false);
-        chkBxRealizada.setDisable(false);
-        txtFldTitulo.requestFocus();
-        btnNuevaTarea.setDisable(true);
-        btnModificar.setDisable(true);
-        btnEliminar.setDisable(true);
-        btnGuardar.setDisable(false);
-    }
-
-    @FXML
-    public void oABtnModificar(ActionEvent actionEvent) {
-        txtFldTitulo.setDisable(false);
-        txtArdDescripcion.setDisable(false);
-        chkBxRealizada.setDisable(false);
-        txtFldTitulo.requestFocus();
-        btnNuevaTarea.setDisable(true);
-        btnModificar.setDisable(true);
-        btnGuardar.setDisable(false);
-        btnEliminar.setDisable(true);
-    }
-
-    @FXML
-    public void oABtnEliminar(ActionEvent actionEvent) {
-        Tarea tareaSeleccionada = lstVwListaDeTareas.getSelectionModel().getSelectedItem();
-        if (confirmarAccion("Eliminar tarea" + tareaSeleccionada.getTitulo()))
-            observableList.remove(tareaSeleccionada);
-    }
-
-    @FXML
-    public void oABtnSalir(ActionEvent actionEvent) {
-        Stage stage = (Stage) ((Node) actionEvent.getSource()).getScene().getWindow();
-        WindowEvent closeEvent = new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST);
-        stage.fireEvent(closeEvent);
-    }
-
-    @FXML
-    public void oABtnRealizada(ActionEvent actionEvent) {
-    }
-
-    @FXML
-    public void oABtnGuardar(ActionEvent actionEvent) {
-        Tarea tareaSeleccionada = lstVwListaDeTareas.getSelectionModel().getSelectedItem();
-        tareaSeleccionada.setTitulo(txtFldTitulo.getText());
-        tareaSeleccionada.setDescripcion(txtArdDescripcion.getText());
-        tareaSeleccionada.setRealizada(chkBxRealizada.isSelected());
-        //1. encontrar el indice del elemento modificado
-        int index = observableList.indexOf(tareaSeleccionada);
-        //2. notificar a la lista que el elemento fue actualizado
-        //forzar la notificacion que dispara change.wasUpdated()
-        if (index != -1)
-            observableList.set(index, tareaSeleccionada);
-        //nota: "set" con el mismo onjeto en el mismo indice dispara el evento de actualizacion
-        btnGuardar.setDisable(true); //deshabilita el boton guardar
-        reseleccionar(); // fuerza la actualizacion del a seleccion actual
-    }
+    ObservableList<Tarea> observableList;        //lista observable que mantiene sincronizada la UI
 
     public void initialize() {
 
@@ -160,15 +103,65 @@ public class TareasControlador {
                 }
             }
         });
+
+        //PROYECTO:
+
+        //deshabilitar edición de campos
+        txtFldTitulo.setDisable(true);
+        txtArdDescripcion.setDisable(true);
+        chkBxRealizada.setDisable(true);
+        chkFechaAuto.setDisable(true);
+        datePickerFecha.setDisable(true);
+
+        //botones
+        btnNuevaTarea.setDisable(false);   // SOLO este habilitado
+        btnSalir.setDisable(false);
+        btnModificar.setDisable(true);
+        btnEliminar.setDisable(true);
+        btnGuardar.setDisable(true);
+
+        //estado neutro del checkbox realizado
+        chkBxRealizada.setAllowIndeterminate(true);
+        chkBxRealizada.setIndeterminate(true);
+
+        //limpieza visual
+        txtFldTitulo.clear();
+        txtArdDescripcion.clear();
+        datePickerFecha.setValue(null);
+
+        //vaciar selección del ListView (muy importante)
+        lstVwListaDeTareas.getSelectionModel().clearSelection();
+
+        //PROYECTO: cuando el usuario marque o desmarque el CheckBox:
+        chkFechaAuto.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            datePickerFecha.setDisable(newVal);
+            if (newVal) datePickerFecha.setValue(null);
+        });
+
         lstVwListaDeTareas.getSelectionModel().selectedItemProperty().addListener(
                 (ObservableValue<? extends Tarea> observable, Tarea oldValue, Tarea newValue) -> {
-
                     if (newValue != null) {
                         txtFldTitulo.setText(newValue.getTitulo()); // Mostrar el título de la tarea seleccionada en el TextField
                         txtArdDescripcion.setText(newValue.getDescripcion()); // Mostrar el título de la tarea seleccionada en el TextField
                         chkBxRealizada.setAllowIndeterminate(false);
                         chkBxRealizada.setIndeterminate(false);
                         chkBxRealizada.setSelected(newValue.isRealizada()); // Mostrar el estado de realizado de la tarea
+
+                        //PROYECTO: manejo de fecha
+                        if (newValue.isFechaChk()) {
+                            //fecha actual
+                            chkFechaAuto.setSelected(true);
+                            chkFechaAuto.setDisable(true);
+                            datePickerFecha.setDisable(true);
+                            datePickerFecha.setValue(null);
+                        } else {
+                            //fecha manual
+                            chkFechaAuto.setSelected(false);
+                            chkFechaAuto.setDisable(true);
+                            datePickerFecha.setDisable(true);
+                            datePickerFecha.setValue(newValue.getFecha());
+                        }
+
                         txtFldTitulo.setDisable(true); // Deshabilitar el control del título
                         txtArdDescripcion.setDisable(true); // Deshabilitar el control de la descripción
                         chkBxRealizada.setDisable(true); // Deshabilitar el control de realizado
@@ -187,9 +180,126 @@ public class TareasControlador {
                         btnModificar.setDisable(true); // Deshabilitar el boton de modificar
                         btnEliminar.setDisable(true); // Deshabilitar el boton de eliminar
                         btnGuardar.setDisable(true); // Deshabilitar el boton de guardar
+
+                        //PROYECTO:
+                        chkFechaAuto.setDisable(true);
+                        chkFechaAuto.setSelected(true);
+                        datePickerFecha.setDisable(true);
+                        datePickerFecha.setValue(null);
                     }
+
+
                 }
         );
+    }
+
+    @FXML
+    public void oABtnNuevaTarea(ActionEvent actionEvent) {
+        Tarea nuevaTarea = new Tarea("Nueva tarea", "Descripcion de la tarea", false, true);
+        //PROYECTO
+        nuevaTarea.setFecha(LocalDate.now());
+        observableList.add(nuevaTarea);
+        lstVwListaDeTareas.getSelectionModel().select(nuevaTarea);
+        lstVwListaDeTareas.scrollTo(nuevaTarea);
+        txtFldTitulo.setDisable(false);
+        txtArdDescripcion.setDisable(false);
+        chkBxRealizada.setDisable(false);
+
+        //PROYECTO
+        chkFechaAuto.setDisable(false);
+        chkFechaAuto.setSelected(true);
+        datePickerFecha.setDisable(true);
+        datePickerFecha.setValue(null);
+
+        txtFldTitulo.requestFocus();
+        btnNuevaTarea.setDisable(true);
+        btnModificar.setDisable(true);
+        btnEliminar.setDisable(true);
+        btnGuardar.setDisable(false);
+    }
+
+    @FXML
+    public void oABtnModificar(ActionEvent actionEvent) {
+        txtFldTitulo.setDisable(false);
+        txtArdDescripcion.setDisable(false);
+        chkBxRealizada.setDisable(false);
+
+        //PROYECTO
+        Tarea t = lstVwListaDeTareas.getSelectionModel().getSelectedItem();
+
+        // Manejo de fecha al editar
+        chkFechaAuto.setDisable(false);
+        chkFechaAuto.setSelected(t.isFechaChk());
+        datePickerFecha.setDisable(t.isFechaChk());
+
+        if (!t.isFechaChk()) {
+            datePickerFecha.setValue(t.getFecha());
+        }
+
+        txtFldTitulo.requestFocus();
+        btnNuevaTarea.setDisable(true);
+        btnModificar.setDisable(true);
+        btnGuardar.setDisable(false);
+        btnEliminar.setDisable(true);
+    }
+
+    @FXML
+    public void oABtnEliminar(ActionEvent actionEvent) {
+        //obtiene la tarea seleccionada actualmente en la lista
+        Tarea tareaSeleccionada = lstVwListaDeTareas.getSelectionModel().getSelectedItem();
+        //si el usuario confirma la eliminacion, se borra de la lista
+        if (confirmarAccion("Eliminar tarea" + tareaSeleccionada.getTitulo()))
+            observableList.remove(tareaSeleccionada); //quita la tarea y actualiza la UI
+    }
+
+    @FXML
+    public void oABtnSalir(ActionEvent actionEvent) {
+        //obtiene la ventana actual donde está corriendo la app
+        Stage stage = (Stage) ((Node) actionEvent.getSource()).getScene().getWindow();
+        //crea un evento de cierre
+        WindowEvent closeEvent = new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST);
+        //ejecuta el evento, mostrando el metodo mostrarConfirmacionDeCierre()
+        stage.fireEvent(closeEvent);
+    }
+
+    @FXML
+    public void oABtnRealizada(ActionEvent actionEvent) {
+    }
+
+    @FXML
+    public void oABtnGuardar(ActionEvent actionEvent) {
+
+        Tarea tareaSeleccionada = lstVwListaDeTareas.getSelectionModel().getSelectedItem();
+
+        if (tareaSeleccionada == null) return;
+
+        tareaSeleccionada.setTitulo(txtFldTitulo.getText());
+        tareaSeleccionada.setDescripcion(txtArdDescripcion.getText());
+        tareaSeleccionada.setRealizada(chkBxRealizada.isSelected());
+
+        //PROYECTO
+        if (chkFechaAuto.isSelected()) {
+            tareaSeleccionada.setFechaChk(true);
+            tareaSeleccionada.setFecha(LocalDate.now());
+        } else {
+            if (datePickerFecha.getValue() == null) {
+                mostrarError();
+                return;
+            }
+            tareaSeleccionada.setFechaChk(false);
+            tareaSeleccionada.setFecha(datePickerFecha.getValue());
+        }
+
+        //1. encontrar el indice del elemento modificado
+        int index = observableList.indexOf(tareaSeleccionada);
+        //2. notificar a la lista que el elemento fue actualizado
+        //forzar la notificacion que dispara change.wasUpdated()
+        if (index != -1) {
+            observableList.set(index, tareaSeleccionada);
+            //nota: "set" con el mismo objeto en el mismo indice dispara el evento de actualizacion
+            btnGuardar.setDisable(true); //deshabilita el boton guardar
+            reseleccionar(); // fuerza la actualizacion de la seleccion actual
+        }
     }
 
     private boolean confirmarAccion(String pregunta) {
@@ -215,6 +325,13 @@ public class TareasControlador {
         } else {
             lstVwListaDeTareas.getSelectionModel().clearSelection();
         }
+    }
+
+    private void mostrarError() {
+        Alert a = new Alert(Alert.AlertType.ERROR);
+        a.setHeaderText(null);
+        a.setContentText("Debes seleccionar una fecha valida");
+        a.show();
     }
 
 }
